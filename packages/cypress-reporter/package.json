@@ -1,0 +1,45 @@
+{
+  "name": "@sayankundu009/cypress-reporter",
+  "version": "1.0.0",
+  "description": "A custom Cypress test reporter",
+  "private": true,
+  "files": [
+    "dist/"
+  ],
+  "keywords": [
+    "cypress",
+    "reporter",
+    "testing",
+    "typescript"
+  ],
+  "author": "Sayan Kundu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sayankundu009/test-reporters"
+  },
+  "homepage": "https://github.com/sayankundu009/test-reporters/packages/cypress-reporter#readme",
+  "bugs": {
+    "url": "https://github.com/sayankundu009/test-reporters/issues"
+  },
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "npm run build && cypress run --config-file tests/cypress.config.ts"
+  },
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "api": "file:../../api/dist",
+    "utils": "file:../../utils/dist",
+    "dotenv": "^16.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "cypress": "^13.0.0"
+  }
+}

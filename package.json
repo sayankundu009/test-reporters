@@ -1,0 +1,30 @@
+{
+  "name": "test-reporters",
+  "version": "1.0.0",
+  "description": "Monorepo with test reporters for JavaScript testing frameworks",
+  "author": "Sayan Kundu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sayankundu009/test-reporters"
+  },
+  "homepage": "https://github.com/sayankundu009/test-reporters#readme",
+  "bugs": {
+    "url": "https://github.com/sayankundu009/test-reporters/issues"
+  },
+  "private": true,
+  "packageManager": "npm@10.8.1",
+  "workspaces": ["packages/*"],
+  "devDependencies": {
+    "turbo": "latest",
+    "typescript": "latest",
+    "tsup": "latest",
+    "@types/node": "latest"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "publish:cypress": "cd packages/cypress-reporter && npm patch && npm publish",
+    "publish:playwright": "cd packages/playwright-reporter && npm patch && npm publish"
+  }
+}

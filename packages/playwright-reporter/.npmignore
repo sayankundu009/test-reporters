@@ -1,0 +1,16 @@
+src/
+tsconfig.json
+tsup.config.ts
+*.test.*
+*.spec.*
+tests/
+coverage/
+.nyc_output
+*.log
+.env*
+.DS_Store
+*.tsbuildinfo
+.gitignore
+.git/
+playwright-report/
+test-results/
