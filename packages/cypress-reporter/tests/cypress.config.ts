@@ -1,7 +1,9 @@
 import { defineConfig } from 'cypress';
-import CypressTestReporter from '../dist/index.js';
+import CypressTestReporter from '../dist/index';
 
 export default defineConfig({
+  video: true,
+  screenshotOnRunFailure: true,
   e2e: {
     setupNodeEvents(on, config) {
       on('task', {
@@ -13,6 +15,7 @@ export default defineConfig({
 
       CypressTestReporter(on, {
         outputFolder: '../test-results/reporter',
+        html: true,
       });
 
       return config;

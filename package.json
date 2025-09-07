@@ -24,7 +24,19 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "publish:cypress": "cd packages/cypress-reporter && npm patch && npm publish",
-    "publish:playwright": "cd packages/playwright-reporter && npm patch && npm publish"
+
+    "build:api": "cd packages/api && npm run build",
+    "build:utils": "cd packages/utils && npm run build",
+    "build:playwright": "cd packages/playwright-reporter && npm run build",
+    "build:cypress": "cd packages/cypress-reporter && npm run build",
+
+    "test:playwright": "cd packages/playwright-reporter && npm run test",
+    "test:cypress": "cd packages/cypress-reporter && npm run test",
+
+    "patch:cypress": "cd packages/cypress-reporter && npm patch",
+    "patch:playwright": "cd packages/playwright-reporter && npm patch",
+
+    "publish:cypress": "cd packages/cypress-reporter && npm publish",
+    "publish:playwright": "cd packages/playwright-reporter && npm publish"
   }
 }

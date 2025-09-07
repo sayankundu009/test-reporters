@@ -1,4 +1,4 @@
-# Custom Cypress Test Reporter
+# Cypress Test Reporter
 
 A Cypress test reporter that generates structured test run data and can integrate with any custom test management API.
 
@@ -38,7 +38,8 @@ export default defineConfig({
         apiKey: process.env.REPORTER_API_KEY || "",
         runId: process.env.REPORTER_RUN_ID || "",
         runName: process.env.REPORTER_RUN_NAME || "",
-        outputFolder: "test-results/reporter"
+        outputFolder: "test-results/reporter",
+        html: true, // Generates visual report
       });
     },
   },

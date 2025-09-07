@@ -11,19 +11,28 @@ export interface TestRun {
     skipped: number;
     duration?: number;
     
-    browserInfo?: {
+    testRunner?: {
         name: string;
         version: string;
-        path: string;
     };
-    cypressVersion?: string;
-    specs?: any[];
+    specs?: string[];
+
+    os?: {
+        name: string;
+        version: string;
+    };
 }
 
 export interface TestAttachment {
     type: string;
     path: string;
     contentType: string;
+}
+
+export interface TestBrowser {
+    name: string;
+    version: string;
+    path: string;
 }
 
 export interface TestStepResult {
@@ -36,12 +45,12 @@ export interface TestStepResult {
     error: {
         message: string;
         stack?: string;
-    };
-    location: {
+    } | null;
+    location?: {
         file: string;
         line: number;
         column: number;
-    };
+    } | null;
 }
 
 export interface TestCaseResult {
@@ -50,23 +59,17 @@ export interface TestCaseResult {
     status: 'passed' | 'failed' | 'skipped' | 'timedOut' | 'interrupted';
     duration: number;
     comment: string;
-    browser?: string;
     error?: {
         message: string;
         stack?: string;
-    };
+    } | null;
     startTime: string;
     endTime: string;
     steps: TestStepResult[],
     attachments: TestAttachment[],
 
-    specs?: any[];
-    browserInfo?: {
-        name: string;
-        version: string;
-        path: string;
-    };
-    cypressVersion?: string;
+    spec?: string;
+    browser?: TestBrowser;
 }
 
 export interface ApiIntegration {

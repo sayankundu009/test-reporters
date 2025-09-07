@@ -1,4 +1,4 @@
-# Custom Playwright Test Reporter
+# Playwright Test Reporter
 
 A Playwright test reporter that generates structured test run data and can integrate with any custom test management API.
 
@@ -28,7 +28,7 @@ Additionally, you may provide the REPORTER_RUN_ID environment variable to use an
 ```typescript
 const config: PlaywrightTestConfig = {
   reporter: [
-     ['@sayankundu009/playwright-reporter', { outputFolder: "test-results/reporter" }]
+     ['@sayankundu009/playwright-reporter', { outputFolder: "test-results/reporter", html: true }]
   ]
   // ...
 };

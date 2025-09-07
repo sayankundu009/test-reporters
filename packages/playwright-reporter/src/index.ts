@@ -11,8 +11,7 @@ import type {
 
 import { CustomApiIntegration, TestCaseResult, TestRun, TestStepResult } from 'api';
 import { PlaywrightTestReporterOptions, PlaywrightTestReporterProps } from './types';
-import { detectBrowser, logger } from 'utils';
-import path from 'path';
+import { detectBrowser, detectOS, findCaseIds, generateHtmlReport, logger, storeReport, stripAnsiCodes } from 'utils';
 
 import 'dotenv/config';
 
@@ -29,6 +28,7 @@ export class PlaywrightTestReporter implements Reporter {
       runId: process.env['REPORTER_RUN_ID'] || "",
       runName: process.env['REPORTER_RUN_NAME'] || "",
       outputFolder: "test-results/reporter",
+      html: false,
     }
 
     this.options = {
@@ -36,6 +36,8 @@ export class PlaywrightTestReporter implements Reporter {
       ...props,
       api: new CustomApiIntegration(config.host, config.apiKey)
     };
+
+    const osInfo = detectOS();
 
     this.runData = {
       id: this.options.runId || "",
@@ -45,11 +47,16 @@ export class PlaywrightTestReporter implements Reporter {
       passed: 0,
       failed: 0,
       skipped: 0,
+      os: osInfo,
     };
   }
 
   async onBegin(_config: FullConfig, suite: Suite) {
     this.runData.totalTests = suite.allTests().length;
+    this.runData.testRunner = {
+      name: "playwright",
+      version: _config.version,
+    };
 
     logger(`Starting Test Run`);
 
@@ -72,14 +79,14 @@ export class PlaywrightTestReporter implements Reporter {
 
   onTestBegin(test: TestCase) {
     const browserInfo = this.getBrowserInfo(test);
-    const browserText = browserInfo.browser ? `[${browserInfo.browser}]` : '';
+    const browserText = browserInfo.name ? `[${browserInfo.name}]` : '';
 
     logger(`${browserText} STARTING: ${test.title}`);
   }
 
   onTestEnd(test: TestCase, result: TestResult) {
     const browserInfo = this.getBrowserInfo(test);
-    const browserText = browserInfo.browser ? `[${browserInfo.browser}]` : '';
+    const browserText = browserInfo.name ? `[${browserInfo.name}]` : '';
 
     logger(`${browserText} ${result.status.toUpperCase()}: ${test.title} (${result.duration}ms)`);
 
@@ -89,7 +96,7 @@ export class PlaywrightTestReporter implements Reporter {
 
     this.updateStats(result.status);
 
-    const caseIds = this.findCaseIds(test.title);
+    const caseIds = findCaseIds(test.title);
 
     if (caseIds.length === 0) {
       logger(`No case ID found: ${test.title}`);
@@ -104,11 +111,11 @@ export class PlaywrightTestReporter implements Reporter {
         status: result.status,
         duration: result.duration,
         comment: this.createComment(result),
-        ...(browserInfo.browser && { browser: browserInfo.browser }),
+        ...(browserInfo.name && { browser: { name: browserInfo.name, version: "", path: "" } }),
         ...(result.errors[0] && {
           error: {
-            message: result.errors[0].message || '',
-            ...(result.errors[0].stack && { stack: result.errors[0].stack }),
+            message: stripAnsiCodes(result?.errors[0]?.message || '') || '',
+            ...(result?.errors[0]?.stack && { stack: stripAnsiCodes(result?.errors[0]?.stack || '') }),
           }
         }),
         startTime: result.startTime.toISOString(),
@@ -154,19 +161,9 @@ export class PlaywrightTestReporter implements Reporter {
     else if (status === 'skipped') this.stats.skipped++;
   }
 
-  private findCaseIds(testTitle: string): string[] {
-    const TEST_ID_PATTERN = 'C\\d+';
-
-    const regex = new RegExp(TEST_ID_PATTERN, 'g');
-
-    const matches = testTitle.match(regex);
-
-    return matches ? matches.map(match => match) : [];
-  }
-
-  private getBrowserInfo(test: TestCase): { browser?: string } {
+  private getBrowserInfo(test: TestCase): { name?: string } {
     let currentSuite: Suite | undefined = test.parent;
-    
+
     while (currentSuite) {
       const project = currentSuite.project();
 
@@ -176,19 +173,19 @@ export class PlaywrightTestReporter implements Reporter {
         const browser = userAgent ? detectBrowser(userAgent) : "";
 
         return {
-          ...(browser && { browser }),
+          ...(browser && { name: browser, version: "", path: "" }),
         };
       }
 
       currentSuite = currentSuite.parent;
     }
-    
+
     return {};
   }
 
   private createComment(result: TestResult): string {
     if (result.status == "failed" || result.status == "timedOut" || result.status == "interrupted") {
-      return "Test Status is " + result.status + " " + JSON.stringify(result.error)
+      return "Test Status is " + result.status + " " + stripAnsiCodes(result.error?.message || '')
     }
     else {
       return "Test Passed within " + result.duration + " ms"
@@ -210,24 +207,25 @@ export class PlaywrightTestReporter implements Reporter {
   private writeReport() {
     if (!this.options.outputFolder) return;
 
-    const fs = require('fs');
-
     const report = {
-      runData: this.runData,
-      testResults: this.testResults,
+      testRun: this.runData,
+      results: this.testResults,
     };
 
     try {
-      const fileName = `results-${this.runData.id}-${this.runData.startTime}.json`;
-      const filePath = path.join(this.options.outputFolder, fileName);
-      const dirPath = path.dirname(filePath);
-
-      fs.mkdirSync(dirPath, { recursive: true });
-      fs.writeFileSync(filePath, JSON.stringify(report, null, 2));
-
-      logger(`Report saved: ${filePath}`);
+      const { path } = storeReport(report, this.options.outputFolder);
+      logger(`Report saved: ${path}`);
     } catch (error) {
       logger(`Save failed: ${error}`);
+    }
+
+    if (this.options.html) {
+      try {
+        const { path } = generateHtmlReport(report, this.options.outputFolder);
+        logger(`HTML report saved: ${path}`);
+      } catch (error) {
+        logger(`Generate HTML report failed: ${error}`);
+      }
     }
   }
 
@@ -240,21 +238,14 @@ export class PlaywrightTestReporter implements Reporter {
       endTime: new Date(step.startTime.getTime() + step.duration).toISOString(),
       status: step.error?.message ? "failed" : "passed",
       error: step.error ? {
-        message: step.error.message || '',
-        stack: step.error.stack || '',
-      } : {
-        message: '',
-        stack: '',
-      },
+        message: stripAnsiCodes(step?.error?.message || '') || '',
+        stack: stripAnsiCodes(step?.error?.stack || '') || '',
+      } : null,
       location: step.location ? {
         file: step.location.file,
         line: step.location.line,
         column: step.location.column,
-      } : {
-        file: '',
-        line: 0,
-        column: 0,
-      },
+      } : null,
     }));
   }
 

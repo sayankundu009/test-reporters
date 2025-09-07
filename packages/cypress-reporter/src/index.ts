@@ -1,8 +1,6 @@
-import { CustomApiIntegration, TestCaseResult, TestRun } from 'api';
+import { CustomApiIntegration, TestBrowser, TestCaseResult, TestRun } from 'api';
 import { CypressTestReporterOptions, RunResult, Spec, BeforeRunDetails, ScreenshotDetails, CypressRunResult } from './types';
-import { logger } from 'utils';
-import path from 'path';
-import fs from 'fs';
+import { logger, findCaseIds, storeReport, stripAnsiCodes, generateHtmlReport } from 'utils';
 
 import 'dotenv/config';
 
@@ -12,7 +10,8 @@ function CypressTestReporter(on: any, options: any = {}) {
     apiKey: process.env.REPORTER_API_KEY || "",
     runId: process.env.REPORTER_RUN_ID || "",
     runName: process.env.REPORTER_RUN_NAME || "",
-    outputFolder: "",
+    outputFolder: "test-results/reporter",
+    html: false,
     ...options
   };
 
@@ -22,7 +21,6 @@ function CypressTestReporter(on: any, options: any = {}) {
   };
 
   const testResults: TestCaseResult[] = [];
-  const specResults: Map<string, RunResult> = new Map();
   let runStartTime: Date | null = null;
 
   const runData: TestRun = {
@@ -35,19 +33,6 @@ function CypressTestReporter(on: any, options: any = {}) {
     skipped: 0,
   };
 
-  function updateStats(status: string) {
-    if (status === 'passed') runData.passed++;
-    else if (status === 'failed') runData.failed++;
-    else if (status === 'skipped') runData.skipped++;
-  }
-
-  function findCaseIds(testTitle: string): string[] {
-    const TEST_ID_PATTERN = 'C\\d+';
-    const regex = new RegExp(TEST_ID_PATTERN, 'g');
-    const matches = testTitle.match(regex);
-    return matches ? matches.map(match => match) : [];
-  }
-
   function createComment(status: string, duration: number, error?: any): string {
     if (status === "failed") {
       return "Test Status is " + status + " " + JSON.stringify(error);
@@ -56,10 +41,26 @@ function CypressTestReporter(on: any, options: any = {}) {
     }
   }
 
-  function processTestResults(spec: Spec, specRunResult: RunResult) {
-    const specPath = spec.relative;
-    logger(`Processing spec: ${specPath}`);
+  function normalizeForComparison(str: string): string {
+    return str
+      .toLowerCase()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
 
+  function getMatchingScreenshots(screenshots: any[], testTitle: string): any[] {
+    const normalizedTestTitle = normalizeForComparison(testTitle);
+
+    return screenshots.filter(screenshot => {
+      const screenshotName = screenshot.name || screenshot.path;
+      const normalizedScreenshotName = normalizeForComparison(screenshotName);
+
+      return normalizedScreenshotName.includes(normalizedTestTitle);
+    });
+  }
+
+  function processSpecTestResult(specRunResult: RunResult, browser: TestBrowser) {
     specRunResult.tests.forEach(test => {
       const testTitle = test.title.join(' ');
       const status = test.state as 'passed' | 'failed' | 'skipped';
@@ -71,8 +72,6 @@ function CypressTestReporter(on: any, options: any = {}) {
         logger(`Error: ${test.displayError}`);
       }
 
-      updateStats(status);
-
       const caseIds = findCaseIds(testTitle);
 
       if (caseIds.length === 0) {
@@ -83,27 +82,40 @@ function CypressTestReporter(on: any, options: any = {}) {
       const testStartTime = specRunResult.stats.startedAt;
 
       caseIds.forEach(caseId => {
+        const attachments = status === 'failed'
+          ? getMatchingScreenshots(specRunResult.screenshots, testTitle)
+            .map(screenshot => ({
+              type: 'image',
+              path: screenshot.path,
+              contentType: 'image/png',
+            }))
+          : [];
+
+        if (status === 'failed' && specRunResult.video) {
+          attachments.push({
+            type: 'video',
+            path: specRunResult.video,
+            contentType: 'video/mp4',
+          });
+        }
+
         const testResult: TestCaseResult = {
           caseId,
           title: testTitle,
           status,
           duration,
-          comment: createComment(status, duration, test.displayError ? { message: test.displayError } : undefined),
+          comment: createComment(status, duration, test.displayError ? { message: stripAnsiCodes(test.displayError) } : undefined),
           ...(test.displayError && {
             error: {
-              message: test.displayError,
+              message: stripAnsiCodes(test.displayError),
             }
           }),
           startTime: testStartTime,
           endTime: specRunResult.stats.endedAt,
-          attachments: specRunResult.screenshots.map(s => {
-            return {
-              type: 'image',
-              path: s.path,
-              contentType: 'image/png',
-            }
-          }),
+          attachments,
           steps: [],
+          browser,
+          spec: specRunResult.spec.relative,
         };
 
         testResults.push(testResult);
@@ -127,21 +139,25 @@ function CypressTestReporter(on: any, options: any = {}) {
     if (!reporterOptions.outputFolder) return;
 
     const report = {
-      runData,
-      testResults,
+      testRun: runData,
+      results: testResults,
     };
 
     try {
-      const fileName = `results-${runData.id}-${runData.startTime}.json`;
-      const filePath = path.join(reporterOptions.outputFolder, fileName);
-      const dirPath = path.dirname(filePath);
+      const { path } = storeReport(report, reporterOptions.outputFolder);
 
-      fs.mkdirSync(dirPath, { recursive: true });
-      fs.writeFileSync(filePath, JSON.stringify(report, null, 2));
-
-      logger(`Report saved: ${filePath}`);
+      logger(`Report saved: ${path}`);
     } catch (error) {
       logger(`Save failed: ${error}`);
+    }
+
+    if (reporterOptions.html) {
+      try {
+        const { path } = generateHtmlReport(report, reporterOptions.outputFolder);
+        logger(`HTML report saved: ${path}`);
+      } catch (error) {
+        logger(`Generate HTML report failed: ${error}`);
+      }
     }
   }
 
@@ -149,13 +165,10 @@ function CypressTestReporter(on: any, options: any = {}) {
     runStartTime = new Date();
     runData.startTime = runStartTime.toISOString();
 
-    runData.browserInfo = details.browser ? {
-      name: details.browser.name,
-      version: details.browser.version,
-      path: details.browser.path,
-    } : undefined;
-
-    runData.cypressVersion = details.cypressVersion;
+    runData.testRunner = {
+      name: "cypress",
+      version: details.cypressVersion,
+    };
     runData.specs = details.specs?.map(spec => spec.relative) || [];
 
     logger(`Starting Test Run with Cypress ${details.cypressVersion}`);
@@ -171,7 +184,7 @@ function CypressTestReporter(on: any, options: any = {}) {
 
         logger(`Created test run: ${runData.id}`);
       } catch (error) {
-        logger(`Failed to create test run: ${error}`);
+        throw new Error(`Failed to create test run: ${error}`);
       }
     } else {
       logger(`Using existing 'RUN_ID' provided by user: ${reporterOptions.runId}`);
@@ -182,13 +195,13 @@ function CypressTestReporter(on: any, options: any = {}) {
     logger(`Starting spec: ${spec.relative}`);
   });
 
-  on('after:spec', (spec: Spec, results: RunResult) => {
-    logger(`Completed spec: ${spec.relative}`);
-    logger(`Spec stats: ${results.stats.passes} passed, ${results.stats.failures} failed, ${results.stats.pending} pending`);
+  // on('after:spec', (spec: Spec, results: RunResult) => {
+  //   logger(`Completed spec: ${spec.relative}`);
+  //   logger(`Spec stats: ${results.stats.passes} passed, ${results.stats.failures} failed, ${results.stats.pending} pending`);
 
-    specResults.set(spec.relative, results);
-    processTestResults(spec, results);
-  });
+  //   specResults.set(spec.relative, results);
+  //   processSpecTestResult(spec, results);
+  // });
 
   on('after:screenshot', (details: ScreenshotDetails) => {
     logger(`Screenshot taken: ${details.name} at ${details.path}`);
@@ -200,21 +213,44 @@ function CypressTestReporter(on: any, options: any = {}) {
     return { path: details.path };
   });
 
-  on('after:run', async (results: CypressRunResult) => {
+  on('after:run', async (result: CypressRunResult) => {
     const endTime = new Date();
-    const duration = runStartTime ? endTime.getTime() - runStartTime.getTime() : results.totalDuration;
+    const duration = runStartTime ? endTime.getTime() - runStartTime.getTime() : result.totalDuration;
+    const stats = {
+      duration: result.totalDuration,
+      passed: result.totalPassed,
+      failed: result.totalFailed,
+      skipped: result.totalSkipped,
+      totalTests: result.totalTests,
+    }
+    const browser = {
+      name: result.browserName,
+      version: result.browserVersion,
+      path: result.browserPath,
+    };
+    const os = {
+      name: result.osName,
+      version: result.osVersion,
+    };
 
     runData.endTime = endTime.toISOString();
-    runData.duration = duration;
-    runData.totalTests = results.totalTests;
-    runData.passed = results.totalPassed;
-    runData.failed = results.totalFailed;
-    runData.skipped = results.totalSkipped;
+    runData.duration = stats.duration;
+    runData.totalTests = stats.totalTests;
+    runData.passed = stats.passed;
+    runData.failed = stats.failed;
+    runData.skipped = stats.skipped;
+    runData.os = os;
+
+    console.log(result);
+
+    result.runs.forEach(run => {
+      processSpecTestResult(run, browser);
+    });
 
     logger(`Test Run Completed: ${runData.id} (${duration}ms)`);
-    logger(`Final Results: ${results.totalPassed} passed, ${results.totalFailed} failed, ${results.totalSkipped} skipped`);
-    logger(`Browser: ${results.browserName} ${results.browserVersion}`);
-    logger(`OS: ${results.osName} ${results.osVersion}`);
+    logger(`Final Results: ${stats.passed} passed, ${stats.failed} failed, ${stats.skipped} skipped`);
+    logger(`Browser: ${browser.name} ${browser.version}`);
+    logger(`OS: ${os.name} ${os.version}`);
 
     await updateResults();
 

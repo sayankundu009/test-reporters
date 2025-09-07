@@ -109,6 +109,7 @@ export interface CypressTestReporterProps {
     runId?: string;
     runName?: string;
     outputFolder?: string;
+    html?: boolean;
 }
 
 export interface CypressTestReporterOptions extends CypressTestReporterProps {

@@ -4,8 +4,7 @@ export default defineConfig({
   testDir: '.',
   fullyParallel: false,
   reporter: [
-    ["html"],
-    ['../dist/index.js', { outputFolder: 'test-results/reporter' }],
+    ['../dist/index.js', { outputFolder: 'test-results/reporter', html: true }],
   ],
   use: {
     headless: true,

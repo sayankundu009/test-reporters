@@ -6,6 +6,7 @@ export interface PlaywrightTestReporterProps {
     runId?: string;
     runName?: string;
     outputFolder?: string;
+    html?: boolean;
 }
 
 export interface PlaywrightTestReporterOptions extends PlaywrightTestReporterProps {
