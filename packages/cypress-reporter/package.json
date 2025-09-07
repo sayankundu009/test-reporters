@@ -16,9 +16,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sayankundu009/test-reporters"
+    "url": "git+https://github.com/sayankundu009/test-reporters.git"
   },
-  "homepage": "https://github.com/sayankundu009/test-reporters/packages/cypress-reporter#readme",
+  "homepage": "https://github.com/sayankundu009/test-reporters",
   "bugs": {
     "url": "https://github.com/sayankundu009/test-reporters/issues"
   },
@@ -41,5 +41,8 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "cypress": "^13.0.0"
+  },
+  "directories": {
+    "test": "tests"
   }
 }

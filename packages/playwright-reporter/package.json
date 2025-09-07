@@ -1,6 +1,10 @@
 {
   "name": "@sayankundu009/playwright-reporter",
   "version": "1.0.0",
+  "description": "A custom Playwright test reporter",
+  "files": [
+    "dist/"
+  ],
   "keywords": [
     "playwright",
     "reporter",
@@ -11,12 +15,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/sayankundu009/test-reporters"
+    "url": "git+https://github.com/sayankundu009/test-reporters.git"
   },
   "bugs": {
     "url": "https://github.com/sayankundu009/test-reporters/issues"
   },
-  "homepage": "https://github.com/sayankundu009/test-reporters/packages/playwright-reporter#readme",
+  "homepage": "https://github.com/sayankundu009/test-reporters",
   "engines": {
     "node": ">=12.0.0"
   },
@@ -24,6 +28,13 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "test": "npm run build && playwright test --config=tests/playwright.config.ts"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
   },
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -36,5 +47,8 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@playwright/test": "^1.40.0"
+  },
+  "directories": {
+    "test": "tests"
   }
 }
