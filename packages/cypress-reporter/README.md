@@ -28,7 +28,7 @@ Add the reporter to your Cypress configuration file (`cypress.config.ts` or `cyp
 
 ```typescript
 import { defineConfig } from 'cypress';
-import CypressTestReporter from 'cypress-reporter';
+import CypressTestReporter from '@sayankundu009/cypress-reporter';
 
 export default defineConfig({
   e2e: {
