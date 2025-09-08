@@ -26,11 +26,35 @@ Additionally, you may provide the `REPORTER_RUN_ID` environment variable to use 
 
 Add the reporter to your Cypress configuration file (`cypress.config.ts` or `cypress.config.js`):
 
+### ES Modules
+
 ```typescript
 import { defineConfig } from 'cypress';
 import CypressTestReporter from '@sayankundu009/cypress-reporter';
 
 export default defineConfig({
+  e2e: {
+    setupNodeEvents(on, config) {
+      CypressTestReporter(on, {
+        host: process.env.REPORTER_HOST || "",
+        apiKey: process.env.REPORTER_API_KEY || "",
+        runId: process.env.REPORTER_RUN_ID || "",
+        runName: process.env.REPORTER_RUN_NAME || "",
+        outputFolder: "test-results/reporter",
+        html: true, // Generates visual report
+      });
+    },
+  },
+});
+```
+
+### CommonJS
+
+```javascript
+const { defineConfig } = require('cypress');
+const CypressTestReporter = require('@sayankundu009/cypress-reporter');
+
+module.exports = defineConfig({
   e2e: {
     setupNodeEvents(on, config) {
       CypressTestReporter(on, {
