@@ -7,5 +7,6 @@ export default defineConfig({
   bundle: true,
   format: ['esm', 'cjs'],
   outDir: 'dist',
-  noExternal: ['api', 'utils']
+  noExternal: ['api', 'utils'],
+  minify: true
 })

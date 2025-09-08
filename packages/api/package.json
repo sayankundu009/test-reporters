@@ -9,7 +9,7 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
-  "dependencies": {
-    "utils": "file:../../utils/dist"
+  "devDependencies": {
+    "utils": "file:../utils"
   }
 }

@@ -6,5 +6,6 @@ export default defineConfig({
   dts: true,
   format: ['esm', 'cjs'],
   outDir: 'dist',
-  target: 'node14'
+  target: 'node14',
+  minify: true
 })
