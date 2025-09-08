@@ -8,5 +8,10 @@ export default defineConfig({
   format: ['esm', 'cjs'],
   outDir: 'dist',
   noExternal: ['api', 'utils'],
-  minify: true
+  minify: true,
+  esbuildOptions: (options) => {
+    options.footer = {
+      js: 'module.exports = module.exports.default;',
+    }
+  }
 })

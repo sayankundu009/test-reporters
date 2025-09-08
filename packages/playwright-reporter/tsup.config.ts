@@ -8,4 +8,9 @@ export default defineConfig({
   outDir: 'dist',
   noExternal: ['api', 'utils'],
   minify: true,
+  esbuildOptions: (options) => {
+    options.footer = {
+      js: 'module.exports = module.exports.default;',
+    }
+  }
 })
